@@ -9,11 +9,12 @@
  */
 import { Env, ChatMessage } from "./types";
 
-// Model ID for Workers AI model
-// https://developers.cloudflare.com/workers-ai/models/
-const MODEL_ID = "@cf/meta/llama-3.1-8b-instruct-fp8";
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_FALLBACK_MODEL = "google/gemma-4-26b-a4b-it:free";
+const OPENROUTER_PRIMARY_MODEL = "google/gemma-4-26b-a4b-it:free";
+
+// Cloudflare Workers AI model used as fallback
+// https://developers.cloudflare.com/workers-ai/models/
+const CF_FALLBACK_MODEL_ID = "@cf/meta/llama-3.1-8b-instruct-fp8";
 
 // Default system prompt
 const SYSTEM_PROMPT =
@@ -60,20 +61,30 @@ async function handleChatRequest(
 ): Promise<Response> {
 	let messages: ChatMessage[] = [];
 
-	try {
-		// Parse JSON request body
-		const payload = (await request.json()) as {
-			messages: ChatMessage[];
-		};
-		messages = payload.messages ?? [];
+	// Parse JSON request body
+	const payload = (await request.json()) as {
+		messages: ChatMessage[];
+	};
+	messages = payload.messages ?? [];
 
-		// Add system prompt if not present
-		if (!messages.some((msg) => msg.role === "system")) {
-			messages.unshift({ role: "system", content: SYSTEM_PROMPT });
+	// Add system prompt if not present
+	if (!messages.some((msg) => msg.role === "system")) {
+		messages.unshift({ role: "system", content: SYSTEM_PROMPT });
+	}
+
+	// --- Primary: OpenRouter ---
+	if (env.OPENROUTER_API_KEY) {
+		try {
+			return await handleOpenRouterRequest(messages, env);
+		} catch (error) {
+			console.error("OpenRouter primary failed, trying Cloudflare AI fallback:", error);
 		}
+	}
 
+	// --- Fallback: Cloudflare Workers AI ---
+	try {
 		const stream = await env.AI.run(
-			MODEL_ID,
+			CF_FALLBACK_MODEL_ID,
 			{
 				messages,
 				max_tokens: 1024,
@@ -93,32 +104,14 @@ async function handleChatRequest(
 			headers: getSseHeaders(),
 		});
 	} catch (error) {
-		console.error("Workers AI request failed, trying OpenRouter fallback:", error);
-
-		if (!env.OPENROUTER_API_KEY) {
-			return new Response(
-				JSON.stringify({
-					error: "Failed to process request and no OpenRouter fallback is configured",
-				}),
-				{
-					status: 500,
-					headers: { "content-type": "application/json" },
-				},
-			);
-		}
-
-		try {
-			return await handleOpenRouterFallback(messages, env);
-		} catch (fallbackError) {
-			console.error("OpenRouter fallback failed:", fallbackError);
-			return new Response(
-				JSON.stringify({ error: "Failed to process request" }),
-				{
-					status: 500,
-					headers: { "content-type": "application/json" },
-				},
-			);
-		}
+		console.error("Cloudflare AI fallback also failed:", error);
+		return new Response(
+			JSON.stringify({ error: "Failed to process request" }),
+			{
+				status: 500,
+				headers: { "content-type": "application/json" },
+			},
+		);
 	}
 }
 
@@ -130,11 +123,11 @@ function getSseHeaders(): HeadersInit {
 	};
 }
 
-async function handleOpenRouterFallback(
+async function handleOpenRouterRequest(
 	messages: ChatMessage[],
 	env: Env,
 ): Promise<Response> {
-	const model = env.OPENROUTER_MODEL ?? OPENROUTER_FALLBACK_MODEL;
+	const model = env.OPENROUTER_MODEL ?? OPENROUTER_PRIMARY_MODEL;
 	const response = await fetch(OPENROUTER_API_URL, {
 		method: "POST",
 		headers: {
@@ -152,7 +145,7 @@ async function handleOpenRouterFallback(
 
 	if (!response.ok || !response.body) {
 		const errorText = await response.text();
-		throw new Error(`OpenRouter fallback error: ${response.status} ${errorText}`);
+		throw new Error(`OpenRouter request error: ${response.status} ${errorText}`);
 	}
 
 	return new Response(response.body, {
