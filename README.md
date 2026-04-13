@@ -138,6 +138,26 @@ To enable AI Gateway:
 
 Learn more about [AI Gateway](https://developers.cloudflare.com/ai-gateway/).
 
+### OpenRouter Backup Provider
+
+The Worker can automatically fall back to OpenRouter if Workers AI fails.
+
+1. Add your OpenRouter key as a Worker secret:
+
+   ```bash
+   npx wrangler secret put OPENROUTER_API_KEY
+   ```
+
+2. (Optional) Set a fallback model in [wrangler.jsonc](wrangler.jsonc) under top-level `vars`:
+
+   ```jsonc
+   "vars": {
+     "OPENROUTER_MODEL": "google/gemma-4-26b-a4b-it:free"
+   }
+   ```
+
+The default fallback model is `google/gemma-4-26b-a4b-it:free` when `OPENROUTER_MODEL` is not set.
+
 ### Modifying the System Prompt
 
 The default system prompt can be changed by updating the `SYSTEM_PROMPT` constant in `src/index.ts`.

@@ -12,6 +12,8 @@ import { Env, ChatMessage } from "./types";
 // Model ID for Workers AI model
 // https://developers.cloudflare.com/workers-ai/models/
 const MODEL_ID = "@cf/meta/llama-3.1-8b-instruct-fp8";
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_FALLBACK_MODEL = "google/gemma-4-26b-a4b-it:free";
 
 // Default system prompt
 const SYSTEM_PROMPT =
@@ -56,11 +58,14 @@ async function handleChatRequest(
 	request: Request,
 	env: Env,
 ): Promise<Response> {
+	let messages: ChatMessage[] = [];
+
 	try {
 		// Parse JSON request body
-		const { messages = [] } = (await request.json()) as {
+		const payload = (await request.json()) as {
 			messages: ChatMessage[];
 		};
+		messages = payload.messages ?? [];
 
 		// Add system prompt if not present
 		if (!messages.some((msg) => msg.role === "system")) {
@@ -85,20 +90,72 @@ async function handleChatRequest(
 		);
 
 		return new Response(stream, {
-			headers: {
-				"content-type": "text/event-stream; charset=utf-8",
-				"cache-control": "no-cache",
-				connection: "keep-alive",
-			},
+			headers: getSseHeaders(),
 		});
 	} catch (error) {
-		console.error("Error processing chat request:", error);
-		return new Response(
-			JSON.stringify({ error: "Failed to process request" }),
-			{
-				status: 500,
-				headers: { "content-type": "application/json" },
-			},
-		);
+		console.error("Workers AI request failed, trying OpenRouter fallback:", error);
+
+		if (!env.OPENROUTER_API_KEY) {
+			return new Response(
+				JSON.stringify({
+					error: "Failed to process request and no OpenRouter fallback is configured",
+				}),
+				{
+					status: 500,
+					headers: { "content-type": "application/json" },
+				},
+			);
+		}
+
+		try {
+			return await handleOpenRouterFallback(messages, env);
+		} catch (fallbackError) {
+			console.error("OpenRouter fallback failed:", fallbackError);
+			return new Response(
+				JSON.stringify({ error: "Failed to process request" }),
+				{
+					status: 500,
+					headers: { "content-type": "application/json" },
+				},
+			);
+		}
 	}
+}
+
+function getSseHeaders(): HeadersInit {
+	return {
+		"content-type": "text/event-stream; charset=utf-8",
+		"cache-control": "no-cache",
+		connection: "keep-alive",
+	};
+}
+
+async function handleOpenRouterFallback(
+	messages: ChatMessage[],
+	env: Env,
+): Promise<Response> {
+	const model = env.OPENROUTER_MODEL ?? OPENROUTER_FALLBACK_MODEL;
+	const response = await fetch(OPENROUTER_API_URL, {
+		method: "POST",
+		headers: {
+			authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+			"content-type": "application/json",
+			"http-referer": "https://workers.cloudflare.com/",
+			"x-title": "llm-chat-app-template",
+		},
+		body: JSON.stringify({
+			model,
+			messages,
+			stream: true,
+		}),
+	});
+
+	if (!response.ok || !response.body) {
+		const errorText = await response.text();
+		throw new Error(`OpenRouter fallback error: ${response.status} ${errorText}`);
+	}
+
+	return new Response(response.body, {
+		headers: getSseHeaders(),
+	});
 }

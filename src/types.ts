@@ -9,6 +9,16 @@ export interface Env {
 	AI: Ai;
 
 	/**
+	 * Optional OpenRouter API key used as fallback when Workers AI is unavailable.
+	 */
+	OPENROUTER_API_KEY?: string;
+
+	/**
+	 * Optional OpenRouter model override for fallback requests.
+	 */
+	OPENROUTER_MODEL?: string;
+
+	/**
 	 * Binding for static assets.
 	 */
 	ASSETS: { fetch: (request: Request) => Promise<Response> };
