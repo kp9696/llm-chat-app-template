@@ -18,18 +18,5 @@
 	"ai": {
 		"binding": "AI"
 	},
-	/**
-	 * Vectorize — vector database for RAG
-	 *
-	 * SETUP (run once before deploying):
-	 *   npx wrangler vectorize create jwithkp-knowledge --dimensions=768 --metric=cosine
-	 *   npx wrangler secret put INGEST_API_KEY   (choose any secret password)
-	 */
-	"vectorize": [
-		{
-			"binding": "VECTORIZE",
-			"index_name": "jwithkp-knowledge"
-		}
-	],
 	"upload_source_maps": true
 }
