@@ -40,7 +40,15 @@ const themeLabel = document.getElementById("theme-label");
 // ── State ──
 const STORAGE_KEY = "jwithkp_chat_history";
 const THEME_KEY = "zhivo_theme";
+const USER_NAME_KEY = "ctsp_user_name";
 const WELCOME_MSG = "Hello! I'm CTSP AI Powered By JwithKP. How can I help you today?";
+
+function buildWelcomeMsg(name) {
+	if (name) {
+		return `Hi ${name} 👋 I’m CTSP AI Powered By JwithKP. How can I help you today?`;
+	}
+	return WELCOME_MSG;
+}
 let chatHistory  = [{ role: "assistant", content: WELCOME_MSG }];
 let isProcessing = false;
 let autoScroll   = true;
@@ -386,6 +394,42 @@ function consumeSseEvents(buffer) {
 	return { events, buffer: normalized };
 }
 
+// ── Name modal ──
+function initNameModal() {
+	const modal = document.getElementById("name-modal");
+	const input = document.getElementById("modal-name-input");
+	const submitBtn = document.getElementById("modal-submit");
+	if (!modal || !input || !submitBtn) return;
+
+	let storedName = null;
+	try { storedName = localStorage.getItem(USER_NAME_KEY); } catch (_) {}
+
+	if (storedName) {
+		// Returning visitor — skip modal
+		return;
+	}
+
+	// First visit — show modal
+	requestAnimationFrame(() => modal.classList.add("open"));
+	setTimeout(() => input.focus(), 300);
+
+	function submitName() {
+		const name = input.value.trim();
+		const saveName = name || null;
+		try { if (saveName) localStorage.setItem(USER_NAME_KEY, saveName); } catch (_) {}
+		modal.classList.remove("open");
+		// Personalise the initial history entry
+		const welcome = buildWelcomeMsg(saveName);
+		chatHistory = [{ role: "assistant", content: welcome }];
+	}
+
+	submitBtn.addEventListener("click", submitName);
+	input.addEventListener("keydown", (e) => {
+		if (e.key === "Enter") { e.preventDefault(); submitName(); }
+	});
+}
+
 // ── Init ──
 initTheme();
+initNameModal();
 loadHistory();
