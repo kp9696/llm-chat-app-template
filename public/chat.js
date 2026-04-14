@@ -32,11 +32,11 @@ const STORAGE_KEY = "jwithkp_chat_history";
 const THEME_KEY = "zhivo_theme";
 const USER_NAME_KEY = "username";
 const HISTORY_LIMIT = 10;
-const WELCOME_MSG = "Hello! I'm CTSP AI Powered By JwithKP. How can I help you today?";
+const WELCOME_MSG = "Hello! I'm JwithKP Powered by CTSP. How can I help you today?";
 
 function buildWelcomeMsg(name) {
 	if (name) {
-		return `Hi ${name} 👋 I’m CTSP AI Powered By JwithKP. How can I help you today?`;
+		return `Hi ${name} 👋 I’m JwithKP Powered by CTSP. How can I help you today?`;
 	}
 	return WELCOME_MSG;
 }
@@ -266,9 +266,9 @@ function clearHistory() {
 // ── Export ──
 function exportChat() {
 	const content = chatHistory
-		.map(m => `### ${m.role === "user" ? "You" : "CTSP AI Powered By JwithKP"}\n\n${m.content}`)
+		.map(m => `### ${m.role === "user" ? "You" : "JwithKP Powered by CTSP"}\n\n${m.content}`)
 		.join("\n\n---\n\n");
-	const doc = `# CTSP AI Powered By JwithKP — Chat Export\n_Exported: ${new Date().toLocaleString()}_\n\n---\n\n${content}`;
+	const doc = `# JwithKP Powered by CTSP — Chat Export\n_Exported: ${new Date().toLocaleString()}_\n\n---\n\n${content}`;
 	const blob = new Blob([doc], { type: "text/markdown" });
 	const url  = URL.createObjectURL(blob);
 	const a    = document.createElement("a");
