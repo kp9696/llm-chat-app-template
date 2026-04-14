@@ -52,7 +52,11 @@ function formatTime() {
 function renderMarkdown(text) {
 	const div = document.createElement("div");
 	div.className = "msg-body";
-	div.innerHTML = marked.parse(text);
+	const unsafeHtml = marked.parse(text);
+	const safeHtml = typeof DOMPurify !== "undefined"
+		? DOMPurify.sanitize(unsafeHtml)
+		: unsafeHtml;
+	div.innerHTML = safeHtml;
 	div.querySelectorAll("pre code").forEach(el => hljs.highlightElement(el));
 	return div;
 }

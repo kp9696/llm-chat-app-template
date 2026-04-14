@@ -20,6 +20,12 @@ const CF_FALLBACK_MODEL_ID = "@cf/meta/llama-3.1-8b-instruct-fp8";
 const SYSTEM_PROMPT =
 	"You are a helpful, friendly assistant. Provide concise and accurate responses.";
 
+const CHUNK_SIZE = 1000;
+
+// Lightweight in-memory store for admin ingestion flows.
+// Note: Worker isolates are ephemeral; this is suitable for demo/local use.
+const knowledgeBase = new Map<string, string[]>();
+
 export default {
 	/**
 	 * Main request handler for the Worker
@@ -47,6 +53,22 @@ export default {
 			return new Response("Method not allowed", { status: 405 });
 		}
 
+		if (url.pathname === "/api/ingest") {
+			if (request.method === "GET") {
+				return handleIngestList();
+			}
+
+			if (request.method === "POST") {
+				return handleIngestCreate(request, env);
+			}
+
+			if (request.method === "DELETE") {
+				return handleIngestDelete(request, env);
+			}
+
+			return new Response("Method not allowed", { status: 405 });
+		}
+
 		// Handle 404 for unmatched routes
 		return new Response("Not found", { status: 404 });
 	},
@@ -62,9 +84,21 @@ async function handleChatRequest(
 	let messages: ChatMessage[] = [];
 
 	// Parse JSON request body
-	const payload = (await request.json()) as {
-		messages: ChatMessage[];
-	};
+	let payload: { messages?: ChatMessage[] };
+	try {
+		payload = (await request.json()) as { messages?: ChatMessage[] };
+	} catch {
+		return jsonResponse({ error: "Invalid JSON payload" }, 400);
+	}
+
+	if (!Array.isArray(payload.messages)) {
+		return jsonResponse({ error: "Expected 'messages' array" }, 400);
+	}
+
+	if (!isValidChatMessageArray(payload.messages)) {
+		return jsonResponse({ error: "Invalid message format" }, 400);
+	}
+
 	messages = payload.messages ?? [];
 
 	// Add system prompt if not present
@@ -114,6 +148,130 @@ async function handleChatRequest(
 		);
 	}
 }
+
+function handleIngestList(): Response {
+	const sources = Array.from(knowledgeBase.entries()).map(([source, chunks]) => ({
+		source,
+		chunks: chunks.length,
+	}));
+
+	return jsonResponse({ sources });
+}
+
+async function handleIngestCreate(request: Request, env: Env): Promise<Response> {
+	if (!isAuthorized(request, env)) {
+		return jsonResponse({ error: "Unauthorized" }, 401);
+	}
+
+	let payload: { source?: string; content?: string };
+	try {
+		payload = (await request.json()) as { source?: string; content?: string };
+	} catch {
+		return jsonResponse({ error: "Invalid JSON payload" }, 400);
+	}
+
+	const source = payload.source?.trim();
+	const content = payload.content?.trim();
+
+	if (!source) {
+		return jsonResponse({ error: "'source' is required" }, 400);
+	}
+
+	if (!content) {
+		return jsonResponse({ error: "'content' is required" }, 400);
+	}
+
+	const chunks = chunkText(content, CHUNK_SIZE);
+	knowledgeBase.set(source, chunks);
+
+	return jsonResponse({
+		message: `Ingested '${source}' with ${chunks.length} chunks`,
+		source,
+		chunks: chunks.length,
+	});
+}
+
+async function handleIngestDelete(request: Request, env: Env): Promise<Response> {
+	if (!isAuthorized(request, env)) {
+		return jsonResponse({ error: "Unauthorized" }, 401);
+	}
+
+	let payload: { source?: string };
+	try {
+		payload = (await request.json()) as { source?: string };
+	} catch {
+		return jsonResponse({ error: "Invalid JSON payload" }, 400);
+	}
+
+	const source = payload.source?.trim();
+	if (!source) {
+		return jsonResponse({ error: "'source' is required" }, 400);
+	}
+
+	if (!knowledgeBase.has(source)) {
+		return jsonResponse({ error: "Source not found" }, 404);
+	}
+
+	knowledgeBase.delete(source);
+	return jsonResponse({ message: `Deleted '${source}'` });
+}
+
+function isAuthorized(request: Request, env: Env): boolean {
+	if (!env.INGEST_API_KEY) {
+		return true;
+	}
+
+	const authHeader = request.headers.get("authorization");
+	if (!authHeader || !authHeader.startsWith("Bearer ")) {
+		return false;
+	}
+
+	const token = authHeader.slice("Bearer ".length).trim();
+	return token === env.INGEST_API_KEY;
+}
+
+function chunkText(content: string, maxChars: number): string[] {
+	const normalized = content.replace(/\r\n?/g, "\n").trim();
+	if (!normalized) {
+		return [];
+	}
+
+	const chunks: string[] = [];
+	for (let i = 0; i < normalized.length; i += maxChars) {
+		chunks.push(normalized.slice(i, i + maxChars));
+	}
+
+	return chunks;
+}
+
+function isValidChatMessageArray(messages: unknown[]): messages is ChatMessage[] {
+	const validRoles = new Set(["system", "user", "assistant"]);
+
+	return messages.every((message) => {
+		if (!message || typeof message !== "object") {
+			return false;
+		}
+
+		const maybeMessage = message as { role?: unknown; content?: unknown };
+		return (
+			typeof maybeMessage.role === "string" &&
+			validRoles.has(maybeMessage.role) &&
+			typeof maybeMessage.content === "string"
+		);
+	});
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+	return new Response(JSON.stringify(body), {
+		status,
+		headers: { "content-type": "application/json" },
+	});
+}
+
+export const __test = {
+	chunkText,
+	isValidChatMessageArray,
+};
 
 function getSseHeaders(): HeadersInit {
 	return {

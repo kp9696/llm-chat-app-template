@@ -9,14 +9,19 @@ export interface Env {
 	AI: Ai;
 
 	/**
-	 * Optional OpenRouter API key used as fallback when Workers AI is unavailable.
+	 * Optional OpenRouter API key used as the primary provider when present.
 	 */
 	OPENROUTER_API_KEY?: string;
 
 	/**
-	 * Optional OpenRouter model override for fallback requests.
+	 * Optional OpenRouter model override for OpenRouter requests.
 	 */
 	OPENROUTER_MODEL?: string;
+
+	/**
+	 * Optional API key for admin ingestion endpoints.
+	 */
+	INGEST_API_KEY?: string;
 
 	/**
 	 * Binding for static assets.
