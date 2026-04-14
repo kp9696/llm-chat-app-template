@@ -296,12 +296,20 @@
 			}
 
 			.avatar-ai svg { width: 26px; height: 26px; }
+			.avatar-ai .avatar-img {
+				width: 26px;
+				height: 26px;
+				border-radius: 7px;
+				object-fit: cover;
+				display: block;
+			}
 
 			.avatar-user {
 				background: linear-gradient(135deg, #1e3a6e, #2d5298);
 				border: 1px solid rgba(45,82,152,0.7);
 				color: rgba(255,255,255,0.9);
-				font-size: 0.75rem;
+				font-size: 0.68rem;
+				letter-spacing: 0.02em;
 				font-weight: 700;
 				box-shadow: 0 0 8px rgba(30,58,110,0.5);
 			}
@@ -635,7 +643,7 @@
 				.input-area { padding: 1rem 2rem 1.5rem; }
 				.bubble-group { max-width: min(68%, 640px); }
 				.avatar { width: 40px; height: 40px; border-radius: 11px; }
-				.avatar-ai svg { width: 30px; height: 30px; }
+				.avatar-ai svg, .avatar-ai .avatar-img { width: 30px; height: 30px; }
 				.input-box { border-radius: 16px; padding: 0.625rem 0.625rem 0.625rem 1.125rem; }
 				#send-button { width: 40px; height: 40px; min-width: 40px; }
 			}
@@ -659,7 +667,7 @@
 				.bubble-group { max-width: 90%; }
 				.message { padding: 0.55rem 0.75rem; }
 				.avatar { width: 32px; height: 32px; border-radius: 9px; }
-				.avatar-ai svg { width: 22px; height: 22px; }
+				.avatar-ai svg, .avatar-ai .avatar-img { width: 22px; height: 22px; }
 				#user-input { font-size: 16px; } /* prevent iOS zoom */
 				#send-button { width: 40px; height: 40px; min-width: 40px; border-radius: 11px; }
 				.input-area { padding: 0.5rem 0.55rem calc(0.7rem + env(safe-area-inset-bottom)); }

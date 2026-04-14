@@ -45,6 +45,8 @@ const changeUserBtn = document.getElementById("change-user-btn");
 const STORAGE_KEY = "jwithkp_chat_history";
 const THEME_KEY = "zhivo_theme";
 const USER_NAME_KEY = "username";
+const HISTORY_LIMIT = 10;
+const AI_AVATAR_SRC = "/assets/ctsp-logo.jpg";
 const WELCOME_MSG = "Hello! I'm CTSP AI Powered By JwithKP. How can I help you today?";
 
 function buildWelcomeMsg(name) {
@@ -53,6 +55,14 @@ function buildWelcomeMsg(name) {
 	}
 	return WELCOME_MSG;
 }
+
+function getUserInitials(name) {
+	const parts = (name || "User").trim().split(/\s+/).filter(Boolean);
+	if (parts.length === 0) return "U";
+	if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+	return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
 let chatHistory  = [{ role: "assistant", content: WELCOME_MSG }];
 let isProcessing = false;
 let autoScroll   = true;
@@ -146,7 +156,9 @@ function buildUserWrapper(content) {
 	group.appendChild(timeEl);
 	const avatar = document.createElement("div");
 	avatar.className = "avatar avatar-user";
-	avatar.textContent = "U";
+	const currentUserName = checkUser() || "User";
+	avatar.textContent = getUserInitials(currentUserName);
+	avatar.title = currentUserName;
 	wrapper.appendChild(avatar);
 	wrapper.appendChild(group);
 	return wrapper;
@@ -159,7 +171,14 @@ function buildAiWrapper(content, isStreaming = false) {
 	// Avatar
 	const avatar = document.createElement("div");
 	avatar.className = "avatar avatar-ai";
-	avatar.innerHTML = ROBOT_SVG;
+	const aiAvatarImg = document.createElement("img");
+	aiAvatarImg.className = "avatar-img";
+	aiAvatarImg.src = AI_AVATAR_SRC;
+	aiAvatarImg.alt = "CTSP AI Avatar";
+	aiAvatarImg.onerror = () => {
+		avatar.innerHTML = ROBOT_SVG;
+	};
+	avatar.appendChild(aiAvatarImg);
 
 	// Message body
 	let msgBody;
@@ -232,6 +251,10 @@ function addMessageToChat(role, content) {
 
 // ── localStorage ──
 function saveHistory() {
+	const conversation = chatHistory
+		.filter((m) => m.role === "user" || m.role === "assistant")
+		.slice(-HISTORY_LIMIT);
+	chatHistory = conversation.length > 0 ? conversation : [{ role: "assistant", content: WELCOME_MSG }];
 	try { localStorage.setItem(STORAGE_KEY, JSON.stringify(chatHistory)); } catch (_) {}
 }
 
@@ -313,73 +336,37 @@ async function sendMessage() {
 	saveHistory();
 
 	try {
-		// Build streaming wrapper
-		const wrapperEl  = buildAiWrapper("", true);
-		chatMessages.appendChild(wrapperEl);
-		const msgBodyEl   = wrapperEl.querySelector(".msg-body");
-		const streamingP  = msgBodyEl.querySelector("p");
-		autoScroll = true;
-		scrollToBottom();
+		const username = checkUser() || "User";
+		const history = chatHistory
+			.slice(0, -1)
+			.filter((m) => m.role === "user" || m.role === "assistant")
+			.slice(-HISTORY_LIMIT);
 
 		const response = await fetch("/api/chat", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ messages: chatHistory }),
+			body: JSON.stringify({
+				message,
+				username,
+				history,
+			}),
 		});
 
-		if (!response.ok)   throw new Error("Failed to get response");
-		if (!response.body) throw new Error("Response body is null");
+		if (!response.ok) throw new Error("Failed to get response");
+		const data = await response.json();
+		const responseText = typeof data.response === "string" ? data.response : "";
 
-		const reader  = response.body.getReader();
-		const decoder = new TextDecoder();
-		let responseText = "";
-		let buffer = "";
-
-		const flush = () => { streamingP.textContent = responseText; scrollToBottom(); };
-
-		let sawDone = false;
-		while (true) {
-			const { done, value } = await reader.read();
-
-			if (done) {
-				const parsed = consumeSseEvents(buffer + "\n\n");
-				for (const data of parsed.events) {
-					if (data === "[DONE]") break;
-					try {
-						const j = JSON.parse(data);
-						const c = (typeof j.response === "string" && j.response) || j.choices?.[0]?.delta?.content || "";
-						if (c) { responseText += c; flush(); }
-					} catch (_) {}
-				}
-				break;
-			}
-
-			buffer += decoder.decode(value, { stream: true });
-			const parsed = consumeSseEvents(buffer);
-			buffer = parsed.buffer;
-			for (const data of parsed.events) {
-				if (data === "[DONE]") { sawDone = true; buffer = ""; break; }
-				try {
-					const j = JSON.parse(data);
-					const c = (typeof j.response === "string" && j.response) || j.choices?.[0]?.delta?.content || "";
-					if (c) { responseText += c; flush(); }
-				} catch (_) {}
-			}
-			if (sawDone) break;
-		}
-
-		// Replace streaming plain-text with rendered markdown
-		if (responseText.length > 0) {
-			const rendered = renderMarkdown(responseText);
-			msgBodyEl.replaceWith(rendered);
-			scrollToBottom();
-			chatHistory.push({ role: "assistant", content: responseText });
-			saveHistory();
-		}
+		if (!responseText) throw new Error("Empty AI response");
+		addMessageToChat("assistant", responseText);
+		chatHistory.push({ role: "assistant", content: responseText });
+		saveHistory();
 
 	} catch (error) {
 		console.error("Error:", error);
-		addMessageToChat("assistant", "Sorry, there was an error processing your request.");
+		const fallback = "Sorry, there was an error processing your request.";
+		addMessageToChat("assistant", fallback);
+		chatHistory.push({ role: "assistant", content: fallback });
+		saveHistory();
 	} finally {
 		typingIndicator.classList.remove("visible");
 		isProcessing  = false;
@@ -387,22 +374,6 @@ async function sendMessage() {
 		sendButton.disabled = false;
 		userInput.focus();
 	}
-}
-
-// ── SSE parser ──
-function consumeSseEvents(buffer) {
-	let normalized = buffer.replace(/\r/g, "");
-	const events = [];
-	let idx;
-	while ((idx = normalized.indexOf("\n\n")) !== -1) {
-		const raw = normalized.slice(0, idx);
-		normalized = normalized.slice(idx + 2);
-		const dataLines = raw.split("\n")
-			.filter(l => l.startsWith("data:"))
-			.map(l => l.slice("data:".length).trimStart());
-		if (dataLines.length) events.push(dataLines.join("\n"));
-	}
-	return { events, buffer: normalized };
 }
 
 // ── User name helpers ──
@@ -439,6 +410,7 @@ function displayUsername(name) {
 function initNameModal() {
 	// Make page visible regardless — prevents any visibility flicker
 	document.body.style.visibility = "visible";
+	if (changeUserBtn) changeUserBtn.addEventListener("click", resetUser);
 
 	const modal = document.getElementById("name-modal");
 	const input = document.getElementById("modal-name-input");
@@ -496,9 +468,6 @@ function initNameModal() {
 	input.addEventListener("keydown", (e) => {
 		if (e.key === "Enter") { e.preventDefault(); onSubmit(); }
 	});
-
-	// Wire Change User button
-	if (changeUserBtn) changeUserBtn.addEventListener("click", resetUser);
 }
 
 // ── Init ──

@@ -16,9 +16,8 @@ const OPENROUTER_PRIMARY_MODEL = "google/gemma-4-26b-a4b-it:free";
 // https://developers.cloudflare.com/workers-ai/models/
 const CF_FALLBACK_MODEL_ID = "@cf/meta/llama-3.1-8b-instruct-fp8";
 
-// Default system prompt
-const SYSTEM_PROMPT =
-	"You are a helpful, friendly assistant. Provide concise and accurate responses.";
+const DEFAULT_USERNAME = "User";
+const HISTORY_LIMIT = 10;
 
 const CHUNK_SIZE = 1000;
 
@@ -81,30 +80,43 @@ async function handleChatRequest(
 	request: Request,
 	env: Env,
 ): Promise<Response> {
-	let messages: ChatMessage[] = [];
-
 	// Parse JSON request body
-	let payload: { messages?: ChatMessage[] };
+	let payload: { message?: string; username?: string; history?: unknown[] };
 	try {
-		payload = (await request.json()) as { messages?: ChatMessage[] };
+		payload = (await request.json()) as {
+			message?: string;
+			username?: string;
+			history?: unknown[];
+		};
 	} catch {
 		return jsonResponse({ error: "Invalid JSON payload" }, 400);
 	}
 
-	if (!Array.isArray(payload.messages)) {
-		return jsonResponse({ error: "Expected 'messages' array" }, 400);
+	const message = payload.message?.trim();
+	if (!message) {
+		return jsonResponse({ error: "'message' is required" }, 400);
 	}
 
-	if (!isValidChatMessageArray(payload.messages)) {
+	const username = payload.username?.trim() || DEFAULT_USERNAME;
+	const rawHistory = Array.isArray(payload.history) ? payload.history : [];
+	if (!isValidChatMessageArray(rawHistory)) {
 		return jsonResponse({ error: "Invalid message format" }, 400);
 	}
 
-	messages = payload.messages ?? [];
+	const history = rawHistory
+		.filter((msg) => msg.role === "user" || msg.role === "assistant")
+		.slice(-HISTORY_LIMIT);
 
-	// Add system prompt if not present
-	if (!messages.some((msg) => msg.role === "system")) {
-		messages.unshift({ role: "system", content: SYSTEM_PROMPT });
-	}
+	const systemPrompt =
+		`You are CTSP AI Assistant. The user's name is ${username}. ` +
+		"Always address them by name. Help with IT support, networking, firewall, and troubleshooting. " +
+		"Keep answers short and practical.";
+
+	const messages: ChatMessage[] = [
+		{ role: "system", content: systemPrompt },
+		...history,
+		{ role: "user", content: message },
+	];
 
 	// --- Primary: OpenRouter ---
 	if (env.OPENROUTER_API_KEY) {
@@ -117,12 +129,11 @@ async function handleChatRequest(
 
 	// --- Fallback: Cloudflare Workers AI ---
 	try {
-		const stream = await env.AI.run(
+		const aiResponse = await env.AI.run(
 			CF_FALLBACK_MODEL_ID,
 			{
 				messages,
 				max_tokens: 1024,
-				stream: true,
 			},
 			{
 				// Uncomment to use AI Gateway
@@ -134,18 +145,15 @@ async function handleChatRequest(
 			},
 		);
 
-		return new Response(stream, {
-			headers: getSseHeaders(),
-		});
+		const responseText = extractAiText(aiResponse);
+		if (!responseText) {
+			throw new Error("Cloudflare AI returned empty response");
+		}
+
+		return jsonResponse({ response: responseText });
 	} catch (error) {
 		console.error("Cloudflare AI fallback also failed:", error);
-		return new Response(
-			JSON.stringify({ error: "Failed to process request" }),
-			{
-				status: 500,
-				headers: { "content-type": "application/json" },
-			},
-		);
+		return jsonResponse({ error: "Failed to process request" }, 500);
 	}
 }
 
@@ -273,14 +281,6 @@ export const __test = {
 	isValidChatMessageArray,
 };
 
-function getSseHeaders(): HeadersInit {
-	return {
-		"content-type": "text/event-stream; charset=utf-8",
-		"cache-control": "no-cache",
-		connection: "keep-alive",
-	};
-}
-
 async function handleOpenRouterRequest(
 	messages: ChatMessage[],
 	env: Env,
@@ -297,16 +297,42 @@ async function handleOpenRouterRequest(
 		body: JSON.stringify({
 			model,
 			messages,
-			stream: true,
 		}),
 	});
 
-	if (!response.ok || !response.body) {
+	if (!response.ok) {
 		const errorText = await response.text();
 		throw new Error(`OpenRouter request error: ${response.status} ${errorText}`);
 	}
 
-	return new Response(response.body, {
-		headers: getSseHeaders(),
-	});
+	const data = (await response.json()) as {
+		choices?: Array<{ message?: { content?: string } }>;
+	};
+	const responseText = data.choices?.[0]?.message?.content?.trim();
+	if (!responseText) {
+		throw new Error("OpenRouter returned empty response");
+	}
+
+	return jsonResponse({ response: responseText });
+}
+
+function extractAiText(aiResponse: unknown): string {
+	if (!aiResponse || typeof aiResponse !== "object") {
+		return "";
+	}
+
+	const result = aiResponse as {
+		response?: unknown;
+		result?: { response?: unknown };
+	};
+
+	if (typeof result.response === "string") {
+		return result.response.trim();
+	}
+
+	if (typeof result.result?.response === "string") {
+		return result.result.response.trim();
+	}
+
+	return "";
 }
