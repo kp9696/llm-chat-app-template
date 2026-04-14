@@ -282,7 +282,7 @@
 			.avatar {
 				width: 36px;
 				height: 36px;
-				border-radius: 10px;
+				border-radius: 50%;
 				flex-shrink: 0;
 				display: flex;
 				align-items: center;
@@ -290,19 +290,12 @@
 			}
 
 			.avatar-ai {
-				background: linear-gradient(135deg, #0f1826, #1e3a6e);
-				border: 1px solid var(--border-accent);
-				box-shadow: 0 0 10px var(--accent-glow);
+				background: linear-gradient(180deg, #233246, #182436);
+				border: 1px solid #4b607d;
+				box-shadow: 0 0 0 1px rgba(23, 36, 56, 0.3), 0 6px 16px rgba(7, 12, 20, 0.45);
 			}
 
 			.avatar-ai svg { width: 26px; height: 26px; }
-			.avatar-ai .avatar-img {
-				width: 26px;
-				height: 26px;
-				border-radius: 7px;
-				object-fit: cover;
-				display: block;
-			}
 
 			.avatar-user {
 				background: linear-gradient(135deg, #1e3a6e, #2d5298);
@@ -642,8 +635,8 @@
 				.chat-messages { padding: 2rem 2rem 0.5rem; gap: 1.5rem; }
 				.input-area { padding: 1rem 2rem 1.5rem; }
 				.bubble-group { max-width: min(68%, 640px); }
-				.avatar { width: 40px; height: 40px; border-radius: 11px; }
-				.avatar-ai svg, .avatar-ai .avatar-img { width: 30px; height: 30px; }
+				.avatar { width: 40px; height: 40px; }
+				.avatar-ai svg { width: 30px; height: 30px; }
 				.input-box { border-radius: 16px; padding: 0.625rem 0.625rem 0.625rem 1.125rem; }
 				#send-button { width: 40px; height: 40px; min-width: 40px; }
 			}
@@ -666,8 +659,8 @@
 				.chat-messages { padding: 0.65rem 0.55rem 0.3rem; gap: 0.75rem; }
 				.bubble-group { max-width: 90%; }
 				.message { padding: 0.55rem 0.75rem; }
-				.avatar { width: 32px; height: 32px; border-radius: 9px; }
-				.avatar-ai svg, .avatar-ai .avatar-img { width: 22px; height: 22px; }
+				.avatar { width: 32px; height: 32px; }
+				.avatar-ai svg { width: 22px; height: 22px; }
 				#user-input { font-size: 16px; } /* prevent iOS zoom */
 				#send-button { width: 40px; height: 40px; min-width: 40px; border-radius: 11px; }
 				.input-area { padding: 0.5rem 0.55rem calc(0.7rem + env(safe-area-inset-bottom)); }

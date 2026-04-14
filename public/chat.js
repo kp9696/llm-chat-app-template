@@ -4,19 +4,13 @@
 
 // ── Robot avatar SVG ──
 const ROBOT_SVG = `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-	<line x1="16" y1="2" x2="16" y2="7" stroke="#f47920" stroke-width="1.5" stroke-linecap="round"/>
-	<circle cx="16" cy="1.8" r="1.8" fill="#f47920"/>
-	<rect x="4" y="7" width="24" height="19" rx="4" fill="#1e3a6e" stroke="#f47920" stroke-width="1"/>
-	<circle class="eye" cx="11.5" cy="15.5" r="3" fill="#f47920"/>
-	<circle class="eye" cx="20.5" cy="15.5" r="3" fill="#f47920"/>
-	<circle cx="12.2" cy="14.8" r="1.2" fill="#fff"/>
-	<circle cx="21.2" cy="14.8" r="1.2" fill="#fff"/>
-	<rect x="8" y="21" width="16" height="3" rx="1.5" fill="#f47920" opacity="0.75"/>
-	<rect x="10.5" y="21.5" width="1.8" height="2" rx="0.5" fill="#0f1826"/>
-	<rect x="14" y="21.5" width="1.8" height="2" rx="0.5" fill="#0f1826"/>
-	<rect x="17.5" y="21.5" width="1.8" height="2" rx="0.5" fill="#0f1826"/>
-	<circle cx="4" cy="15.5" r="2" fill="#f47920"/>
-	<circle cx="28" cy="15.5" r="2" fill="#f47920"/>
+	<circle cx="16" cy="16" r="15" fill="#192334"/>
+	<rect x="8" y="9" width="16" height="13" rx="4" fill="#2A3A53" stroke="#7D93B3" stroke-width="1.2"/>
+	<circle class="eye" cx="13" cy="15.4" r="1.8" fill="#B9C9E5"/>
+	<circle class="eye" cx="19" cy="15.4" r="1.8" fill="#B9C9E5"/>
+	<rect x="12" y="19" width="8" height="1.8" rx="0.9" fill="#8FA7CA"/>
+	<rect x="14.9" y="5.5" width="2.2" height="2.3" rx="1.1" fill="#7D93B3"/>
+	<circle cx="16" cy="4.2" r="1.3" fill="#9EB3D1"/>
 </svg>`;
 
 // ── Icon SVGs ──
@@ -46,7 +40,6 @@ const STORAGE_KEY = "jwithkp_chat_history";
 const THEME_KEY = "zhivo_theme";
 const USER_NAME_KEY = "username";
 const HISTORY_LIMIT = 10;
-const AI_AVATAR_SRC = "/assets/ctsp-logo.jpg";
 const WELCOME_MSG = "Hello! I'm CTSP AI Powered By JwithKP. How can I help you today?";
 
 function buildWelcomeMsg(name) {
@@ -171,14 +164,7 @@ function buildAiWrapper(content, isStreaming = false) {
 	// Avatar
 	const avatar = document.createElement("div");
 	avatar.className = "avatar avatar-ai";
-	const aiAvatarImg = document.createElement("img");
-	aiAvatarImg.className = "avatar-img";
-	aiAvatarImg.src = AI_AVATAR_SRC;
-	aiAvatarImg.alt = "CTSP AI Avatar";
-	aiAvatarImg.onerror = () => {
-		avatar.innerHTML = ROBOT_SVG;
-	};
-	avatar.appendChild(aiAvatarImg);
+	avatar.innerHTML = ROBOT_SVG;
 
 	// Message body
 	let msgBody;
