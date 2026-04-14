@@ -40,7 +40,7 @@ const themeLabel = document.getElementById("theme-label");
 // ── State ──
 const STORAGE_KEY = "jwithkp_chat_history";
 const THEME_KEY = "zhivo_theme";
-const WELCOME_MSG = "Hello! I'm the Zhivo AI assistant. How can I help you today?";
+const WELCOME_MSG = "Hello! I'm CTSP AI Powered By JwithKP. How can I help you today?";
 let chatHistory  = [{ role: "assistant", content: WELCOME_MSG }];
 let isProcessing = false;
 let autoScroll   = true;
@@ -246,14 +246,14 @@ function clearHistory() {
 // ── Export ──
 function exportChat() {
 	const content = chatHistory
-		.map(m => `### ${m.role === "user" ? "You" : "Zhivo AI"}\n\n${m.content}`)
+		.map(m => `### ${m.role === "user" ? "You" : "CTSP AI Powered By JwithKP"}\n\n${m.content}`)
 		.join("\n\n---\n\n");
-	const doc = `# Zhivo AI — Chat Export\n_Exported: ${new Date().toLocaleString()}_\n\n---\n\n${content}`;
+	const doc = `# CTSP AI Powered By JwithKP — Chat Export\n_Exported: ${new Date().toLocaleString()}_\n\n---\n\n${content}`;
 	const blob = new Blob([doc], { type: "text/markdown" });
 	const url  = URL.createObjectURL(blob);
 	const a    = document.createElement("a");
 	a.href = url;
-	a.download = `zhivo-chat-${new Date().toISOString().slice(0, 10)}.md`;
+	a.download = `ctsp-ai-chat-${new Date().toISOString().slice(0, 10)}.md`;
 	a.click();
 	URL.revokeObjectURL(url);
 }
