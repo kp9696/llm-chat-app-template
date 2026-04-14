@@ -33,10 +33,14 @@ const typingIndicator = document.getElementById("typing-indicator");
 const newChatBtn   = document.getElementById("new-chat-btn");
 const exportBtn    = document.getElementById("export-btn");
 const scrollBtn    = document.getElementById("scroll-btn");
+const themeToggleBtn = document.getElementById("theme-toggle");
+const themeIcon = document.getElementById("theme-icon");
+const themeLabel = document.getElementById("theme-label");
 
 // ── State ──
 const STORAGE_KEY = "jwithkp_chat_history";
-const WELCOME_MSG = "Hello! I'm the JwithKP AI assistant. How can I help you on your journey with knowledge & practice today?";
+const THEME_KEY = "zhivo_theme";
+const WELCOME_MSG = "Hello! I'm the Zhivo AI assistant. How can I help you today?";
 let chatHistory  = [{ role: "assistant", content: WELCOME_MSG }];
 let isProcessing = false;
 let autoScroll   = true;
@@ -63,6 +67,40 @@ function renderMarkdown(text) {
 
 function scrollToBottom() {
 	if (autoScroll) chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function applyTheme(theme) {
+	document.documentElement.setAttribute("data-theme", theme);
+	if (themeLabel) {
+		themeLabel.textContent = theme === "dark" ? "Dark" : "Light";
+	}
+	if (themeIcon) {
+		themeIcon.textContent = theme === "dark" ? "🌙" : "☀️";
+	}
+}
+
+function toggleTheme() {
+	const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
+	const nextTheme = currentTheme === "dark" ? "light" : "dark";
+	applyTheme(nextTheme);
+	try {
+		localStorage.setItem(THEME_KEY, nextTheme);
+	} catch (_) {}
+}
+
+function initTheme() {
+	let storedTheme = null;
+	try {
+		storedTheme = localStorage.getItem(THEME_KEY);
+	} catch (_) {}
+
+	if (storedTheme === "dark" || storedTheme === "light") {
+		applyTheme(storedTheme);
+		return;
+	}
+
+	const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+	applyTheme(prefersDark ? "dark" : "light");
 }
 
 // ── Auto-scroll + jump button ──
@@ -208,14 +246,14 @@ function clearHistory() {
 // ── Export ──
 function exportChat() {
 	const content = chatHistory
-		.map(m => `### ${m.role === "user" ? "You" : "JwithKP AI"}\n\n${m.content}`)
+		.map(m => `### ${m.role === "user" ? "You" : "Zhivo AI"}\n\n${m.content}`)
 		.join("\n\n---\n\n");
-	const doc = `# JwithKP AI — Chat Export\n_Exported: ${new Date().toLocaleString()}_\n\n---\n\n${content}`;
+	const doc = `# Zhivo AI — Chat Export\n_Exported: ${new Date().toLocaleString()}_\n\n---\n\n${content}`;
 	const blob = new Blob([doc], { type: "text/markdown" });
 	const url  = URL.createObjectURL(blob);
 	const a    = document.createElement("a");
 	a.href = url;
-	a.download = `jwithkp-chat-${new Date().toISOString().slice(0, 10)}.md`;
+	a.download = `zhivo-chat-${new Date().toISOString().slice(0, 10)}.md`;
 	a.click();
 	URL.revokeObjectURL(url);
 }
@@ -223,6 +261,9 @@ function exportChat() {
 // ── Button wiring ──
 newChatBtn.addEventListener("click", () => { if (!isProcessing) { clearHistory(); userInput.focus(); } });
 exportBtn.addEventListener("click", exportChat);
+if (themeToggleBtn) {
+	themeToggleBtn.addEventListener("click", toggleTheme);
+}
 
 // ── Input handlers ──
 userInput.addEventListener("input", function () {
@@ -346,4 +387,5 @@ function consumeSseEvents(buffer) {
 }
 
 // ── Init ──
+initTheme();
 loadHistory();
