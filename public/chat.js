@@ -2,16 +2,8 @@
  * JwithKP AI Chat — Frontend
  */
 
-// ── Robot avatar SVG ──
-const ROBOT_SVG = `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-	<circle cx="16" cy="16" r="15" fill="#192334"/>
-	<rect x="8" y="9" width="16" height="13" rx="4" fill="#2A3A53" stroke="#7D93B3" stroke-width="1.2"/>
-	<circle class="eye" cx="13" cy="15.4" r="1.8" fill="#B9C9E5"/>
-	<circle class="eye" cx="19" cy="15.4" r="1.8" fill="#B9C9E5"/>
-	<rect x="12" y="19" width="8" height="1.8" rx="0.9" fill="#8FA7CA"/>
-	<rect x="14.9" y="5.5" width="2.2" height="2.3" rx="1.1" fill="#7D93B3"/>
-	<circle cx="16" cy="4.2" r="1.3" fill="#9EB3D1"/>
-</svg>`;
+// ── AI avatar ──
+const ROBOT_EMOJI = "🤖";
 
 // ── Icon SVGs ──
 const COPY_SVG  = `<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>`;
@@ -164,7 +156,7 @@ function buildAiWrapper(content, isStreaming = false) {
 	// Avatar
 	const avatar = document.createElement("div");
 	avatar.className = "avatar avatar-ai";
-	avatar.innerHTML = ROBOT_SVG;
+	avatar.innerHTML = `<span class="ai-emoji" aria-hidden="true">${ROBOT_EMOJI}</span>`;
 
 	// Message body
 	let msgBody;

@@ -290,12 +290,18 @@
 			}
 
 			.avatar-ai {
-				background: linear-gradient(180deg, #233246, #182436);
+				background: #1f2d42;
 				border: 1px solid #4b607d;
-				box-shadow: 0 0 0 1px rgba(23, 36, 56, 0.3), 0 6px 16px rgba(7, 12, 20, 0.45);
+				box-shadow: 0 0 0 1px rgba(23, 36, 56, 0.3), 0 4px 12px rgba(7, 12, 20, 0.35);
 			}
 
-			.avatar-ai svg { width: 26px; height: 26px; }
+			.avatar-ai .ai-emoji {
+				font-size: 18px;
+				line-height: 1;
+				filter: grayscale(0.82) saturate(0.18) contrast(1.06) brightness(0.93);
+				opacity: 0.9;
+				transform: translateY(0.5px);
+			}
 
 			.avatar-user {
 				background: linear-gradient(135deg, #1e3a6e, #2d5298);
@@ -305,19 +311,6 @@
 				letter-spacing: 0.02em;
 				font-weight: 700;
 				box-shadow: 0 0 8px rgba(30,58,110,0.5);
-			}
-
-			/* Robot eye blink */
-			.eye {
-				animation: blink 4.5s ease-in-out infinite;
-				transform-origin: center;
-				transform-box: fill-box;
-			}
-			.eye:nth-of-type(2) { animation-delay: 0.08s; }
-
-			@keyframes blink {
-				0%, 42%, 58%, 100% { transform: scaleY(1); }
-				50% { transform: scaleY(0.08); }
 			}
 
 			/* ── Bubble group (bubble + timestamp) ── */
@@ -636,7 +629,7 @@
 				.input-area { padding: 1rem 2rem 1.5rem; }
 				.bubble-group { max-width: min(68%, 640px); }
 				.avatar { width: 40px; height: 40px; }
-				.avatar-ai svg { width: 30px; height: 30px; }
+				.avatar-ai .ai-emoji { font-size: 20px; }
 				.input-box { border-radius: 16px; padding: 0.625rem 0.625rem 0.625rem 1.125rem; }
 				#send-button { width: 40px; height: 40px; min-width: 40px; }
 			}
@@ -660,7 +653,7 @@
 				.bubble-group { max-width: 90%; }
 				.message { padding: 0.55rem 0.75rem; }
 				.avatar { width: 32px; height: 32px; }
-				.avatar-ai svg { width: 22px; height: 22px; }
+				.avatar-ai .ai-emoji { font-size: 16px; }
 				#user-input { font-size: 16px; } /* prevent iOS zoom */
 				#send-button { width: 40px; height: 40px; min-width: 40px; border-radius: 11px; }
 				.input-area { padding: 0.5rem 0.55rem calc(0.7rem + env(safe-area-inset-bottom)); }
