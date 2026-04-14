@@ -36,11 +36,15 @@ const scrollBtn    = document.getElementById("scroll-btn");
 const themeToggleBtn = document.getElementById("theme-toggle");
 const themeIcon = document.getElementById("theme-icon");
 const themeLabel = document.getElementById("theme-label");
+const userChipEl = document.getElementById("user-chip");
+const userChipName = document.getElementById("user-chip-name");
+const userChipAvatar = document.getElementById("user-chip-avatar");
+const changeUserBtn = document.getElementById("change-user-btn");
 
 // ── State ──
 const STORAGE_KEY = "jwithkp_chat_history";
 const THEME_KEY = "zhivo_theme";
-const USER_NAME_KEY = "ctsp_user_name";
+const USER_NAME_KEY = "username";
 const WELCOME_MSG = "Hello! I'm CTSP AI Powered By JwithKP. How can I help you today?";
 
 function buildWelcomeMsg(name) {
@@ -239,6 +243,13 @@ function loadHistory() {
 			if (Array.isArray(parsed) && parsed.length > 0) chatHistory = parsed;
 		}
 	} catch (_) {}
+
+	// If nothing in history, use a personalised welcome when we know the user's name
+	if (chatHistory.length === 0 || (chatHistory.length === 1 && chatHistory[0].content === WELCOME_MSG)) {
+		const name = checkUser();
+		chatHistory = [{ role: "assistant", content: name ? buildWelcomeMsg(name) : WELCOME_MSG }];
+	}
+
 	// Always render from chatHistory (clears initial HTML placeholder)
 	chatMessages.innerHTML = "";
 	for (const msg of chatHistory) addMessageToChat(msg.role, msg.content);
@@ -394,39 +405,100 @@ function consumeSseEvents(buffer) {
 	return { events, buffer: normalized };
 }
 
+// ── User name helpers ──
+
+/** Save name to localStorage */
+function saveName(name) {
+	try { localStorage.setItem(USER_NAME_KEY, name); } catch (_) {}
+}
+
+/** Return stored name or null */
+function checkUser() {
+	try { return localStorage.getItem(USER_NAME_KEY) || null; } catch (_) { return null; }
+}
+
+/** Clear stored user data and reload */
+function resetUser() {
+	try {
+		localStorage.removeItem(USER_NAME_KEY);
+		localStorage.removeItem(STORAGE_KEY);
+	} catch (_) {}
+	location.reload();
+}
+
+/** Show the username chip in the header */
+function displayUsername(name) {
+	if (!userChipEl || !userChipName || !userChipAvatar || !changeUserBtn) return;
+	userChipAvatar.textContent = name.charAt(0).toUpperCase();
+	userChipName.textContent = name;
+	userChipEl.classList.add("visible");
+	changeUserBtn.style.display = "flex";
+}
+
 // ── Name modal ──
 function initNameModal() {
+	// Make page visible regardless — prevents any visibility flicker
+	document.body.style.visibility = "visible";
+
 	const modal = document.getElementById("name-modal");
 	const input = document.getElementById("modal-name-input");
 	const submitBtn = document.getElementById("modal-submit");
-	if (!modal || !input || !submitBtn) return;
+	const errorEl = document.getElementById("modal-error");
 
-	let storedName = null;
-	try { storedName = localStorage.getItem(USER_NAME_KEY); } catch (_) {}
+	const storedName = checkUser();
 
+	// Returning visitor — skip modal & show chip
 	if (storedName) {
-		// Returning visitor — skip modal
+		displayUsername(storedName);
 		return;
 	}
 
+	if (!modal || !input || !submitBtn) return;
+
 	// First visit — show modal
 	requestAnimationFrame(() => modal.classList.add("open"));
-	setTimeout(() => input.focus(), 300);
+	setTimeout(() => input.focus(), 280);
 
-	function submitName() {
-		const name = input.value.trim();
-		const saveName = name || null;
-		try { if (saveName) localStorage.setItem(USER_NAME_KEY, saveName); } catch (_) {}
-		modal.classList.remove("open");
-		// Personalise the initial history entry
-		const welcome = buildWelcomeMsg(saveName);
-		chatHistory = [{ role: "assistant", content: welcome }];
+	function validate() {
+		const val = input.value.trim();
+		const ok = val.length >= 2;
+		submitBtn.disabled = !ok;
+		if (ok) {
+			input.classList.remove("invalid");
+			if (errorEl) errorEl.textContent = "";
+		}
+		return ok;
 	}
 
-	submitBtn.addEventListener("click", submitName);
+	function showError(msg) {
+		if (errorEl) errorEl.textContent = msg;
+		input.classList.add("invalid");
+	}
+
+	function onSubmit() {
+		const name = input.value.trim();
+		if (name.length < 2) {
+			showError("Please enter at least 2 characters.");
+			input.focus();
+			return;
+		}
+		saveName(name);
+		modal.classList.remove("open");
+		displayUsername(name);
+		// Personalise the initial history entry shown after modal closes
+		chatHistory = [{ role: "assistant", content: buildWelcomeMsg(name) }];
+		chatMessages.innerHTML = "";
+		addMessageToChat("assistant", chatHistory[0].content);
+	}
+
+	input.addEventListener("input", validate);
+	submitBtn.addEventListener("click", onSubmit);
 	input.addEventListener("keydown", (e) => {
-		if (e.key === "Enter") { e.preventDefault(); submitName(); }
+		if (e.key === "Enter") { e.preventDefault(); onSubmit(); }
 	});
+
+	// Wire Change User button
+	if (changeUserBtn) changeUserBtn.addEventListener("click", resetUser);
 }
 
 // ── Init ──
